@@ -179,3 +179,16 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Project data files
+data/raw/
+*.csv
+*.xlsx
+*.xls
+*.parquet
+*.sav
+
+# Large model files
+*.pkl
+*.pt
+*.h5
