@@ -187,6 +187,7 @@ data/raw/
 *.xls
 *.parquet
 *.sav
+*.npy
 
 # Large model files
 *.pkl
