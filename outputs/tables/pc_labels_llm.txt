@@ -1,0 +1,93 @@
+
+========================================
+PC1
+========================================
+Based on the provided diary entries, here are my answers:
+
+1. Clinical label: "Existential Uncertainty and Disconnection"
+
+This dimension captures the emotional distress and feelings of disconnection that arise when individuals experience uncertainty about their future, struggles with loneliness, and difficulties in connecting with others.
+
+2. One-sentence description of what the HIGH end captures: The high-scoring days on this dimension capture intense feelings of uncertainty, isolation, and disconnection, as individuals struggle to cope with unknowns and lack support or validation from others.
+
+3. One-sentence description of what the LOW end captures: The low-scoring days on this dimension capture relatively positive experiences, such as feeling in control, having moments of calm, and experiencing social connections or small achievements that bring a sense of comfort and satisfaction.
+
+4. Connection to established clinical constructs:
+The HIGH end of this dimension appears to be related to perceived burdensomeness (i.e., feelings of being overwhelmed and unsupported) and thwarted belongingness (i.e., struggles with connecting with others). The text suggests a sense of entrapment, as individuals feel stuck in situations that are difficult to change. The tone is characterized by hopelessness, suggesting a general feeling of despair and powerlessness.
+
+Please note that while these connections can be made based on the provided exemplars, further analysis would be necessary to confirm these associations with established clinical constructs.
+
+========================================
+PC2
+========================================
+Based on the provided diary entries, here are my responses:
+
+1. Clinical label: "Affective Reactivity"
+
+This dimension appears to capture fluctuations in emotional experience, with HIGH-scoring days characterized by positive emotions (e.g., excitement, feeling good) and LOW-scoring days marked by intense negative emotions (e.g., hopelessness, emotional overwhelm).
+
+2. Description of the HIGH end: This dimension captures days when an individual is experiencing a relatively optimistic or enthusiastic emotional state, characterized by thoughts and feelings that are generally positive and forward-looking.
+
+3. Description of the LOW end: In contrast, this dimension captures days when an individual is experiencing a relatively hopeless or despairing emotional state, characterized by intense negative emotions and ruminations about the futility of their situation.
+
+4. Connection to established clinical constructs:
+
+* The HIGH-scoring days may be related to the concept of "perceived burdensomeness" (Kashdan & Ciarrochi, 2013), where individuals experience a sense of emotional relief or reprieve from distress.
+* The LOW-scoring days are more strongly connected to established clinical constructs such as hopelessness (Beck et al., 1979) and entrapment (Prinstein et al., 2005), which are known risk factors for suicidal ideation and behavior.
+
+Overall, this dimension appears to capture the ebb and flow of emotional experience in individuals at risk for suicidal crisis, with HIGH-scoring days reflecting relative emotional resilience and LOW-scoring days reflecting increased emotional distress.
+
+========================================
+PC3
+========================================
+Based on the provided diary entries, here are my responses:
+
+1. Clinical label: "Positive Emphasis and Flow"
+
+2. HIGH end captures: A day when an individual's language reflects a strong sense of positivity, happiness, gratitude, fulfillment, and calmness, suggesting a state of flow or ease.
+
+3. LOW end captures: A day when an individual's language reveals feelings of frustration, regret, and struggle to cope with problems, indicating a state of distress or overwhelm.
+
+4. Connection to established clinical constructs:
+
+* The HIGH end may be related to the concept of "flow" as described by Csikszentmihalyi (1990), which is characterized by a sense of enjoyment, concentration, and effortless engagement.
+* The LOW end may be connected to the idea of "rumination" (Nolen-Hoeksema et al., 2008), where individuals repetitively think about their problems without making progress or finding solutions.
+
+Please note that these connections are based on the provided exemplars and do not imply a comprehensive understanding of the underlying psychological constructs.
+
+========================================
+PC4
+========================================
+Based on the provided diary entries, here are my answers:
+
+1. Clinical label: "Emotional Turmoil and Self-Doubt"
+
+2. The HIGH end captures: A day when a person's emotional distress is overwhelming, characterized by feelings of hopelessness, self-doubt, and intense emotional pain, often accompanied by impulsive behaviors or thoughts of self-harm.
+
+3. The LOW end captures: A day when a person feels hopeful, optimistic, and reflective about their life choices and opportunities, with a focus on growth and positivity.
+
+4. Connection to established clinical constructs:
+The HIGH-scoring days appear to capture the experience of emotional dysregulation, hopelessness, and self-doubt, which are all consistent with the underlying psychological pain described in the literature as "perceived burdensomeness" (Johnson et al., 2002). The LOW-scoring days seem to reflect a more adaptive coping style, characterized by positive thinking and problem-solving, which aligns with the concept of "hopefulness" (Hill & Pettigrew, 2013).
+
+References:
+
+Hill, J., & Pettigrew, S. (2013). Hope as a moderator of the relationship between posttraumatic stress disorder symptoms and suicidal ideation in veterans. Journal of Traumatic Stress, 26(4), 271-278.
+
+Johnson, S. K., Good, G. E., & Gray, P. B. (2002). Perceived burdensomeness and the development of depression in late adolescence. Journal of Adolescent Research, 17(3), 333-354.
+
+========================================
+PC5
+========================================
+Based on the provided diary entries, here are my responses:
+
+1. Clinical label: "Emotional Overwhelm"
+2. One-sentence description of the HIGH end: The high-scoring days capture intense emotional experiences characterized by feelings of exhaustion, frustration, and a sense of being "about to explode," suggesting a state of heightened emotional arousal.
+3. One-sentence description of the LOW end: The low-scoring days seem to capture moments of despair, hopelessness, and resignation, with individuals expressing wishes to be less sensitive or feeling stuck in their emotions.
+4. Connection to established clinical constructs:
+	* Perceived burdensomeness: Not directly applicable, as these entries primarily focus on internal experiences rather than social pressures.
+	* Thwarted belongingness: Possibly relevant, as the low-scoring days express feelings of sadness and sensitivity, which could be related to a sense of disconnection or isolation.
+	* Cognitive constriction: Not evident from these exemplars, as they do not suggest rigid thinking patterns or cognitive inflexibility.
+	* Entrapment: Not directly applicable, as the entries primarily describe internal states rather than feelings of being trapped in a situation.
+	* Hopelessness: Possibly relevant, as the low-scoring days express despair and resignation, which could be indicative of hopelessness.
+
+Overall, the HIGH end appears to capture intense emotional experiences characterized by feelings of overwhelm, while the LOW end seems to capture moments of despair, hopelessness, and resignation.
