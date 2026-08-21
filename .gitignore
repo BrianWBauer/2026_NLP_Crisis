@@ -193,3 +193,7 @@ data/raw/
 *.pkl
 *.pt
 *.h5
+
+# Manuscript drafts (kept local; not distributed via the repository)
+*.docx
+*.doc
