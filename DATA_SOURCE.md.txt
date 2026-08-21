@@ -1,5 +1,0 @@
-**Source:** [where the data lives in your lab files, e.g. the OneDrive path or shared drive location]
-**Date copied:** [the date you copy it over]
-**Description:** [one or two sentences about what the data contains]
-**IRB:** [protocol number]
-**Contact:** [who to ask if there are questions about the data]
