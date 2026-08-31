@@ -194,6 +194,7 @@ data/raw/
 *.pt
 *.h5
 
-# Manuscript drafts (kept local; not distributed via the repository)
+# Manuscript drafts and collaborator materials (kept local; not distributed)
 *.docx
 *.doc
+*.pdf
