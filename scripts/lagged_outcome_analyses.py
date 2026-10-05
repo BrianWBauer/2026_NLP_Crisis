@@ -33,6 +33,32 @@ PART B - AR(1) benchmark for each Table 2 analysis
     The text-only model is additionally reported on the FULL Table 2 sample so
     the subsample restriction is visible rather than silent.
 
+PART C - Decomposing the AR(1) term
+    Part B's AR(1) term mixes two very different kinds of information: a
+    participant's overall level (their mean prior score) and genuine day-to-day
+    carryover (today's prior score relative to their own mean). PART A shows the
+    pooled lag-1 correlations are far larger than the within-person ones, so
+    most of the AR term's apparent power is expected to be person-level.
+
+    This matters for interpretation because the folds are participant-disjoint:
+    the text model is never shown the held-out participant's own outcome
+    history, while the AR model is. Splitting the lag into between-person and
+    within-person parts shows how much of the AR baseline is a person-intercept
+    proxy, and ``text_plus_lag_within`` asks the sharper question - does language
+    add anything beyond real day-to-day carryover?
+
+    IMPORTANT CAVEAT on reading Part B against Part C. ``lag_between`` is the
+    held-out participant's OWN mean prior score, so any model containing it is
+    handed that participant's symptom level directly. That is legitimate in a
+    deployment sense - a monitoring system would have the person's history - but
+    it is NOT a like-for-like comparison with the text models, which are given no
+    person-level information whatsoever by construction. Part B's AR(1) term
+    contains this component implicitly. Conclusions of the form "text adds
+    nothing over AR(1)" must therefore be stated as "text adds nothing over
+    knowing the participant's own symptom level", which is a different and much
+    weaker claim. ``lag_within_only`` is the comparison that holds person-level
+    information constant across the two predictor sets.
+
 Lag construction
     Every lag is an EXACT calendar join (``lag_date = ema_date - 1 day``).
     A bare ``groupby(...).shift(1)`` is never used: on this dataset it attaches
@@ -384,6 +410,76 @@ def part_b(
 
 
 # -----------------------------------------------------------------------------
+# PART C: is the AR(1) term a person-intercept proxy?
+# -----------------------------------------------------------------------------
+def part_c(
+    panel: pd.DataFrame, emb: np.ndarray, n_boot: int
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split the AR(1) term into between- and within-person parts.
+
+    ``lag_between`` is the participant's mean lag value, ``lag_within`` the
+    deviation of each day's lag value from that mean. Both are computed from the
+    participant's OWN observed prior scores, which are available at prediction
+    time, so neither leaks the outcome being predicted.
+    """
+    model_rows: list[dict] = []
+    contrast_rows: list[dict] = []
+
+    for label, y_col, lag_col, desc in AR_ANALYSES:
+        sub = panel.loc[panel[y_col].notna() & panel[lag_col].notna()].copy()
+        pm = sub.groupby(PID_COL)[lag_col].transform("mean")
+        sub["lag_between"] = pm
+        sub["lag_within"] = sub[lag_col] - pm
+
+        idx = sub["embed_row"].to_numpy()
+        y = sub[y_col].to_numpy(float)
+        g = sub[PID_COL].astype(str).to_numpy()
+
+        specs = {
+            "lag_between_only": (None, sub[["lag_between"]]),
+            "lag_within_only": (None, sub[["lag_within"]]),
+            "lag_both_parts": (None, sub[["lag_between", "lag_within"]]),
+            "text_only": (emb[idx], None),
+            "text_plus_lag_within": (emb[idx], sub[["lag_within"]]),
+            "text_plus_lag_both": (emb[idx], sub[["lag_between", "lag_within"]]),
+        }
+
+        fits: dict[str, dict] = {}
+        for mname, (X_, Zdf) in specs.items():
+            Z = Zdf.to_numpy(float) if Zdf is not None else None
+            fits[mname] = run_grouped_cv_blocks(X_, Z, y, g, alpha=RIDGE_ALPHA)
+            model_rows.append(
+                {
+                    "analysis": label,
+                    "description": desc,
+                    "model": mname,
+                    **{k: v for k, v in fits[mname].items() if k != "yhat"},
+                }
+            )
+
+        for cname, a, b in [
+            ("text_plus_lag_within_vs_lag_within", "text_plus_lag_within", "lag_within_only"),
+            ("text_plus_lag_both_vs_lag_both", "text_plus_lag_both", "lag_both_parts"),
+            ("lag_between_vs_lag_within", "lag_between_only", "lag_within_only"),
+            ("text_only_vs_lag_within", "text_only", "lag_within_only"),
+        ]:
+            boot = bootstrap_delta(y, fits[a]["yhat"], fits[b]["yhat"], g, n_boot=n_boot)
+            contrast_rows.append(
+                {
+                    "analysis": label,
+                    "contrast": cname,
+                    "n": int(len(y)),
+                    "participants": int(len(np.unique(g))),
+                    "R2_a": fits[a]["R2"],
+                    "R2_b": fits[b]["R2"],
+                    **boot,
+                }
+            )
+
+    return pd.DataFrame(model_rows), pd.DataFrame(contrast_rows)
+
+
+# -----------------------------------------------------------------------------
 # Reporting
 # -----------------------------------------------------------------------------
 def print_part_a(tbl: pd.DataFrame) -> None:
@@ -480,7 +576,40 @@ def main() -> None:
     )
     print_part_b(models, contrasts)
 
+    print()
+    print("=" * 78)
+    print("PART C - IS THE AR(1) TERM A PERSON-INTERCEPT PROXY?")
+    print("=" * 78)
+    print("  Folds are participant-disjoint, so the text model never sees a held-out")
+    print("  participant's own history while the AR model does. Splitting the lag into")
+    print("  between- and within-person parts shows what the AR baseline is made of.")
+    print("  CAVEAT: lag_between is the held-out participant's own mean prior score, so")
+    print("  any model containing it is handed that person's symptom level outright.")
+    print("  lag_within_only is the only comparison that holds person-level")
+    print("  information constant between the text and lag predictor sets.")
+    models_c, contrasts_c = part_c(panel, emb, n_boot=args.n_boot)
+    for label, _, _, desc in AR_ANALYSES:
+        m = models_c.loc[models_c["analysis"] == label]
+        print(f"\n{label}")
+        print(f"  {desc}")
+        for _, r in m.iterrows():
+            print(
+                f"    {r['model']:<24s} n={int(r['n']):>5d}  "
+                f"r={r['pearson_r']:.4f}  R2={r['R2']:>8.4f}  RMSE={r['RMSE']:.4f}"
+            )
+        for _, r in contrasts_c.loc[contrasts_c["analysis"] == label].iterrows():
+            print(
+                f"      {r['contrast']:<40s} "
+                f"dR2={r['delta_R2']:+.4f} [{r['delta_R2_CI_lo']:+.4f}, "
+                f"{r['delta_R2_CI_hi']:+.4f}]"
+            )
+
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    p_cc = OUT_DIR / "ar1_decomposition_models.csv"
+    p_cd = OUT_DIR / "ar1_decomposition_contrasts.csv"
+    models_c.to_csv(p_cc, index=False)
+    contrasts_c.to_csv(p_cd, index=False)
+
     p_a = OUT_DIR / "lag1_autocorrelation_descriptives.csv"
     p_m = OUT_DIR / "ar1_benchmark_models.csv"
     p_c = OUT_DIR / "ar1_benchmark_contrasts.csv"
@@ -490,6 +619,8 @@ def main() -> None:
     print(f"\nSaved: {p_a}")
     print(f"Saved: {p_m}")
     print(f"Saved: {p_c}")
+    print(f"Saved: {p_cc}")
+    print(f"Saved: {p_cd}")
 
 
 if __name__ == "__main__":
