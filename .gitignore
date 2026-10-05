@@ -198,3 +198,6 @@ data/raw/
 *.docx
 *.doc
 *.pdf
+
+# macOS Finder metadata
+.DS_Store
