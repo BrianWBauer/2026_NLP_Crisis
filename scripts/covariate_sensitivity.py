@@ -53,6 +53,7 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 
 from cv_blocks import (
+    RANDOM_SEED,
     bootstrap_delta,
     repeated_cv,
     run_grouped_cv_blocks,
@@ -335,9 +336,32 @@ def person_mean_embeddings(panel: pd.DataFrame, emb: np.ndarray):
 # ---------------------------------------------------------------------------
 # Part C - between/within decomposition of the text models' predictions
 # ---------------------------------------------------------------------------
-def part_c(panel: pd.DataFrame, emb: np.ndarray, alpha) -> list:
+def _decompose(y: np.ndarray, yhat: np.ndarray, groups: np.ndarray) -> dict:
+    """Split the agreement between y and yhat into between- and within-person parts."""
+    d = pd.DataFrame({"y": y, "p": yhat, "g": groups})
+    ym = d.groupby("g")["y"].transform("mean").to_numpy()
+    pm = d.groupby("g")["p"].transform("mean").to_numpy()
+    per = d.groupby("g").agg(y=("y", "mean"), p=("p", "mean"))
+    return {
+        "r_between": _corr(per["p"].to_numpy(), per["y"].to_numpy()),
+        "r_within": _corr(yhat - pm, y - ym),
+        "participants": len(per),
+    }
+
+
+def part_c(panel: pd.DataFrame, emb: np.ndarray, alpha, n_repeats: int) -> list:
+    """Between/within decomposition, averaged over random participant partitions.
+
+    The deterministic GroupKFold partition is reported too, but the mean and SD
+    over n_repeats partitions are the values to quote: the single-partition
+    between-person correlations move by several hundredths across partitions,
+    whereas the within-person correlations are stable to about .01. That
+    contrast is itself the finding, so it has to be measured rather than
+    assumed from one split.
+    """
     print("\n" + "=" * 78)
     print("PART C - how much of the text models' accuracy is BETWEEN-person?")
+    print(f"   deterministic partition plus {n_repeats} random partitions")
     print("=" * 78)
     rows = []
     for label, ycol, _ in ANALYSES:
@@ -345,29 +369,43 @@ def part_c(panel: pd.DataFrame, emb: np.ndarray, alpha) -> list:
         y = sub[ycol].to_numpy(float)
         g = sub[PID_COL].to_numpy()
         X = emb[sub["row"].to_numpy()]
+
         fit = run_grouped_cv_blocks(X, None, y, g, alpha=alpha, label=f"{label}:text_only")
-        yhat = fit["yhat"]
-
-        d = pd.DataFrame({"y": y, "p": yhat, "g": g})
-        ym = d.groupby("g")["y"].transform("mean").to_numpy()
-        pm = d.groupby("g")["p"].transform("mean").to_numpy()
-        per = d.groupby("g").agg(y=("y", "mean"), p=("p", "mean"))
-
-        r_overall = fit["pearson_r"]
-        r_between = _corr(per["p"].to_numpy(), per["y"].to_numpy())
-        r_within = _corr(yhat - pm, y - ym)
+        det = _decompose(y, fit["yhat"], g)
         shares_y = _between_within(y, g)
-        shares_p = _between_within(yhat, g)
+        shares_p = _between_within(fit["yhat"], g)
 
-        print(f"\n  {label}  n={len(y)}")
-        print(f"    pooled r                      {r_overall:+.4f}")
-        print(f"    between-person r (n={len(per):3d} ppts) {r_between:+.4f}")
-        print(f"    within-person r               {r_within:+.4f}")
-        print(f"    outcome variance between-person   {shares_y['var_between_share']:.3f}")
+        btw, wth, pld = [], [], []
+        for i in range(n_repeats):
+            f = run_grouped_cv_blocks(X, None, y, g, alpha=alpha,
+                                      group_seed=RANDOM_SEED + i)
+            dec = _decompose(y, f["yhat"], g)
+            btw.append(dec["r_between"])
+            wth.append(dec["r_within"])
+            pld.append(f["pearson_r"])
+        btw, wth, pld = np.array(btw), np.array(wth), np.array(pld)
+
+        print(f"\n  {label}  n={len(y)}  participants={det['participants']}")
+        print(f"    pooled   r  det={fit['pearson_r']:+.4f}   "
+              f"mean={pld.mean():+.4f} sd={pld.std(ddof=1):.4f}")
+        print(f"    between  r  det={det['r_between']:+.4f}   "
+              f"mean={btw.mean():+.4f} sd={btw.std(ddof=1):.4f}")
+        print(f"    within   r  det={det['r_within']:+.4f}   "
+              f"mean={wth.mean():+.4f} sd={wth.std(ddof=1):.4f}")
+        print(f"    outcome variance between-person    {shares_y['var_between_share']:.3f}")
         print(f"    PREDICTION variance between-person {shares_p['var_between_share']:.3f}")
+
         rows.append({
-            "analysis": label, "n": len(y), "participants": len(per),
-            "r_pooled": r_overall, "r_between": r_between, "r_within": r_within,
+            "analysis": label, "n": len(y), "participants": det["participants"],
+            "n_repeats": n_repeats,
+            "r_pooled": fit["pearson_r"],
+            "r_between": det["r_between"],
+            "r_within": det["r_within"],
+            "r_pooled_mean": pld.mean(), "r_pooled_sd": pld.std(ddof=1),
+            "r_between_mean": btw.mean(), "r_between_sd": btw.std(ddof=1),
+            "r_between_min": btw.min(), "r_between_max": btw.max(),
+            "r_within_mean": wth.mean(), "r_within_sd": wth.std(ddof=1),
+            "r_within_min": wth.min(), "r_within_max": wth.max(),
             "outcome_var_between_share": shares_y["var_between_share"],
             "outcome_var_within_share": shares_y["var_within_share"],
             "prediction_var_between_share": shares_p["var_between_share"],
@@ -516,7 +554,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-boot", type=int, default=2000)
     ap.add_argument("--fold-repeats", type=int, default=30,
-                    help="random participant-to-fold partitions for Part F")
+                    help="random participant-to-fold partitions for Parts C and F")
     ap.add_argument("--skip-tuned", action="store_true",
                     help="skip the inner-CV ridge tuning pass")
     args = ap.parse_args()
@@ -543,7 +581,7 @@ def main() -> None:
 
     a_rows, a_con = part_a(panel, emb, args.n_boot, alpha)
     b_rows = part_b(panel, emb, alpha)
-    c_rows = part_c(panel, emb, alpha)
+    c_rows = part_c(panel, emb, alpha, args.fold_repeats)
     d_rows, d_con = part_d(panel, emb, args.n_boot, alpha)
     e_rows, e_con = part_e(panel, emb, args.n_boot, alpha)
     f_rows = part_f(panel, emb, args.fold_repeats, alpha)
