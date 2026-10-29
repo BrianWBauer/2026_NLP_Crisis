@@ -13,8 +13,8 @@ The checks that carry the weight:
   - Each inserted DOI must sit inside a <w:hyperlink> whose relationship Target
     equals the text the reader sees. A hyperlink whose label and target disagree
     is the one failure here that proofreading would not catch.
-  - Every DOI in the reference list is checked the same way, not just the two
-    that were added.
+  - Every DOI in the reference list is checked the same way, not just the
+    three that were touched, and none may remain plain text.
 """
 
 from __future__ import annotations
@@ -47,6 +47,8 @@ ADDED = {
     "https://doi.org/10.1111/sltb.12439",
     "https://doi.org/10.4088/JCP.24m15320",
 }
+# Already present as text; converted from plain text to a live link.
+RELINKED = {"https://doi.org/10.18653/v1/D19-1410"}
 
 failures: list[str] = []
 
@@ -119,8 +121,8 @@ def main() -> None:
         f"{counts.get((V12_AUTHOR, 'ins'))} ins / {counts.get((V12_AUTHOR, 'del'))} del",
     )
     check(
-        counts.get((V13_AUTHOR, "ins")) == 12 and counts.get((V13_AUTHOR, "del")) == 10,
-        "copyedit layer grew by 5 ins / 1 del",
+        counts.get((V13_AUTHOR, "ins")) == 13 and counts.get((V13_AUTHOR, "del")) == 11,
+        "copyedit layer grew by 6 ins / 2 del",
         f"{counts.get((V13_AUTHOR, 'ins'))} ins / {counts.get((V13_AUTHOR, 'del'))} del",
     )
 
@@ -141,7 +143,7 @@ def main() -> None:
     body = re.sub(r"\s+", " ", " ".join(accepted))
 
     # --- the DOIs -----------------------------------------------------------
-    for url in sorted(ADDED):
+    for url in sorted(ADDED | RELINKED):
         check(url in body, f"accepted text contains {url}")
     check("413–422." in body, "2019 page range uses an en dash")
     check("413-422." not in body, "2019 hyphen page range is gone")
@@ -159,8 +161,10 @@ def main() -> None:
           f"{len(pairs)} links checked" if not mismatched else str(mismatched[:3]))
 
     linked = {text for _, text in pairs}
-    check(ADDED <= linked, "both new DOIs are hyperlinks, not plain text",
-          f"missing: {sorted(ADDED - linked)}" if not ADDED <= linked else "")
+    want = ADDED | RELINKED
+    check(want <= linked, "every touched DOI is a live hyperlink",
+          f"missing: {sorted(want - linked)}" if not want <= linked else
+          f"{len(want)} checked")
 
     # DOI suffixes legitimately contain parentheses, so only whitespace ends
     # one. A trailing sentence period is not part of the DOI.
@@ -172,9 +176,11 @@ def main() -> None:
 
     before = plain_text_dois(src)
     after = plain_text_dois(dst)
-    check(after == before, "no DOI was added as plain text",
-          f"{len(after)} pre-existing: {sorted(after)}"
-          if after == before else f"new: {sorted(after - before)}")
+    check(not (after - before), "no DOI was added as plain text",
+          f"new: {sorted(after - before)}" if after - before else "")
+    check(not after, "every DOI in the reference list is a live hyperlink",
+          f"was {len(before)} plain in v13, now {len(after)}"
+          if not after else f"still plain: {sorted(after)}")
 
     # --- markup legality ----------------------------------------------------
     x = raw(V14)
@@ -208,7 +214,7 @@ def main() -> None:
             if any(list(p.iter(q(tag))) for tag in ("ins", "del"))
         }
     )
-    check(changed == [20, 59, 88, 92, 96, 109, 110, 111, 659],
+    check(changed == [20, 59, 88, 92, 96, 109, 110, 111, 130, 659],
           "changes confined to the expected paragraphs", str(changed))
 
     print("all checks passed" if not failures else f"{len(failures)} CHECK(S) FAILED")

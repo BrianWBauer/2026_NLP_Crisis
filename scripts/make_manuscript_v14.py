@@ -11,6 +11,13 @@ Both DOIs were confirmed against Crossref:
 The 2019 entry also gets an en dash in its page range, matching the rest of the
 reference list, which uses en dashes everywhere else.
 
+The Reimers and Gurevych (2019) entry already carried its DOI, but as plain
+text. It was the only one of the 39 DOIs in the list that was not a live link,
+so it is converted here. The text does not change, which means the tracked
+change is a deletion of the plain run and an insertion of identical text inside
+a hyperlink. That looks redundant in Word's markup pane and is the honest
+representation: rejecting it restores plain text, accepting it leaves a link.
+
 These changes carry the same author and date as v13's, because they are the
 same copyedit pass. Rejecting the "Copyedit revision" layer still lands exactly
 on v12.
@@ -80,6 +87,9 @@ DOIS = [
 EN_DASH_OLD = "(2), 413-422."
 EN_DASH_NEW = "(2), 413–422."
 
+# Already present as plain text; converted in place rather than appended.
+RELINK = ["https://doi.org/10.18653/v1/D19-1410"]
+
 
 def next_rel_id(rels: str) -> str:
     used = {int(m) for m in re.findall(r'Id="rId(\d+)"', rels)}
@@ -137,6 +147,50 @@ def append_hyperlink(xml: str, anchor: str, rid: str, url: str) -> str:
     return xml[: p_m.start()] + new_para + xml[p_m.end() :]
 
 
+def link_plain_doi(xml: str, rid: str, url: str) -> str:
+    """Turn an existing plain-text DOI into a tracked hyperlink.
+
+    The displayed text is unchanged, so this is a deletion of the plain run
+    followed by an insertion of the same characters inside a hyperlink. Any
+    text preceding the URL in the same run is re-emitted untouched.
+    """
+    target = esc(url)
+    m = v13._one_run(xml, url)
+    open_tag, head, text_esc, tail = v13._split_run(m.group(0))
+
+    if target not in text_esc:
+        raise SystemExit(f"run found but <w:t> does not hold {url!r}")
+    if tail.strip():
+        raise SystemExit(f"unexpected content after <w:t>: {tail[:80]!r}")
+
+    rpr_m = re.search(r"<w:rPr>.*?</w:rPr>", head, re.S)
+    body_rpr = rpr_m.group(0) if rpr_m else ""
+
+    before, _, after = text_esc.partition(target)
+    if after.strip():
+        raise SystemExit(f"unexpected text after the DOI: {after[:40]!r}")
+
+    v13._id[0] += 1
+    del_id = v13._id[0]
+    v13._id[0] += 1
+    ins_id = v13._id[0]
+
+    rebuilt = f'{open_tag}{head}<w:t xml:space="preserve">{before}</w:t></w:r>'
+    rebuilt += (
+        f'<w:del w:id="{del_id}" w:author="{AUTHOR}" w:date="{DATE}">'
+        f"<w:r>{body_rpr}<w:delText>{target}</w:delText></w:r>"
+        f"</w:del>"
+        f'<w:hyperlink r:id="{rid}">'
+        f'<w:ins w:id="{ins_id}" w:author="{AUTHOR}" w:date="{DATE}">'
+        f"<w:r>{LINK_RPR}<w:t>{target}</w:t></w:r>"
+        f"</w:ins>"
+        f"</w:hyperlink>"
+    )
+    if after:
+        rebuilt += f'<w:r>{body_rpr}<w:t xml:space="preserve">{after}</w:t></w:r>'
+    return xml[: m.start()] + rebuilt + xml[m.end() :]
+
+
 def main() -> None:
     if WORK.exists():
         shutil.rmtree(WORK)
@@ -166,6 +220,12 @@ def main() -> None:
         rels = add_external_rel(rels, rid, url)
         xml = append_hyperlink(xml, anchor, rid, url)
 
+    # 3. The one DOI that was already present, but as plain text.
+    for url in RELINK:
+        rid = next_rel_id(rels)
+        rels = add_external_rel(rels, rid, url)
+        xml = link_plain_doi(xml, rid, url)
+
     # --- validation ---------------------------------------------------------
     import xml.dom.minidom as md
 
@@ -181,12 +241,14 @@ def main() -> None:
 
     new_ins = len(re.findall(r"<w:ins\b", xml)) - before_ins
     new_del = len(re.findall(r"<w:del\b", xml)) - before_del
-    # One replacement (1 ins + 1 del) plus a space and a link per DOI.
-    assert new_ins == 1 + 2 * len(DOIS), f"new insertions = {new_ins}"
-    assert new_del == 1, f"new deletions = {new_del}"
+    # The en dash replacement (1 ins + 1 del), a space and a link per appended
+    # DOI, and a del + ins for each DOI converted in place.
+    assert new_ins == 1 + 2 * len(DOIS) + len(RELINK), f"new insertions = {new_ins}"
+    assert new_del == 1 + len(RELINK), f"new deletions = {new_del}"
 
-    assert len(re.findall(r"<Relationship\b", rels)) == before_rels + len(DOIS), (
-        "relationship count wrong"
+    n_rels = len(re.findall(r"<Relationship\b", rels))
+    assert n_rels == before_rels + len(DOIS) + len(RELINK), (
+        f"relationship count wrong: {n_rels}"
     )
 
     # No <w:ins> may contain another, and none may contain a hyperlink.
@@ -196,7 +258,7 @@ def main() -> None:
     for m in re.finditer(r"<w:del\b[^>]*>(.*?)</w:del>", xml, re.S):
         assert "<w:hyperlink" not in m.group(1), "hyperlink inside w:del"
 
-    for _, url in DOIS:
+    for url in [u for _, u in DOIS] + RELINK:
         assert esc(url) in xml, f"DOI text missing: {url}"
         assert f'Target="{url}"' in rels, f"DOI relationship missing: {url}"
     assert esc(EN_DASH_NEW) in xml, "en dash page range missing"
@@ -223,7 +285,7 @@ def main() -> None:
     print(f"wrote {DST}")
     print(f"  paragraphs {before_paras}, tables {before_tbl}, tabs {before_tab}")
     print(f"  new revisions: {new_ins} ins / {new_del} del, author {AUTHOR!r}")
-    print(f"  relationships {before_rels} -> {before_rels + len(DOIS)}")
+    print(f"  relationships {before_rels} -> {n_rels}")
     print("  0 nested insertions, 0 hyperlinks inside tracked markup")
 
 
