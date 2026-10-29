@@ -4,6 +4,19 @@ Every number in the output is read from outputs/tables/, so the document cannot
 drift from the analyses. Nothing is typed in by hand except the prose, and the
 prose cites only quantities that appear in the tables it accompanies.
 
+Scope. This supplement carries exactly the two tables that back limitations
+Fourth and Fifth in the manuscript, and nothing else. An earlier version built
+seven sections and twelve tables covering lag-1 autocorrelation, an
+autoregressive benchmark and its decomposition, day of week, and demographic
+covariates. Those analyses are a separate methods paper rather than support for
+this one, and carrying them here invited a reader to treat a second paper's
+argument as this paper's loose ends. They are preserved at commit 7763e66 and
+were deliberately removed, not lost.
+
+Table numbering continues the manuscript's own series, which ends at Table S7,
+so the two tables here are S8 and S9. The earlier version restarted at S1 and
+collided with the manuscript.
+
 Usage:
     python scripts/make_supplement.py [--out "NLP_Crisis_EMA Supplement.docx"]
 """
@@ -164,185 +177,23 @@ def contrast_label(s: str) -> str:
     return s.replace("_", " ")
 
 
-AUTOCORR = {
-    "PM crisis total (t) ~ PM crisis total (t-1)":
-        "Evening crisis symptom total, consecutive evenings",
-    "PM DSI-SS total (t) ~ PM DSI-SS total (t-1)":
-        "Evening DSI-SS total, consecutive evenings",
-    "AM crisis total (t+1) ~ AM crisis total (t)":
-        "Morning crisis symptom total, consecutive mornings",
-    "AM DSI-SS total (t+1) ~ AM DSI-SS total (t)":
-        "Morning DSI-SS total, consecutive mornings",
-    "AM crisis total (t+1) ~ PM crisis total (t)  [evening -> next morning]":
-        "Crisis symptom total, evening to next morning",
-    "AM DSI-SS total (t+1) ~ PM DSI-SS total (t)  [evening -> next morning]":
-        "DSI-SS total, evening to next morning",
-}
-
-
 # ---------------------------------------------------------------------------
 # sections
 # ---------------------------------------------------------------------------
-def section_s1(doc: Document) -> None:
-    d = pd.read_csv(TABLES / "lag1_autocorrelation_descriptives.csv")
-    heading(doc, "S1. Day-to-day stability of the outcome measures")
-    prose(doc, (
-        "Both outcomes were strongly autocorrelated across consecutive assessments when "
-        "observations were pooled across participants, with correlations between .68 and .72 "
-        "depending on the pair of assessments considered (Table S1). Pooled correlations of "
-        "this kind combine stable differences between participants with day-to-day change "
-        "within them, and the intraclass correlations indicate that the former accounts for "
-        "the majority of the variance in each measure (ICC between .62 and .66). When the same "
-        "associations were recomputed on person-mean-centered scores, the within-person "
-        "autocorrelations fell to between .05 and .22, and the medians of the per-participant "
-        "correlations, computed among participants contributing at least five usable pairs, "
-        "fell between .11 and .30. Daily symptom reports were therefore substantially less "
-        "predictable from the preceding assessment than the pooled values imply, which is the "
-        "reason the autoregressive benchmark in Section S2 is decomposed into its between- and "
-        "within-person parts in Section S3."
-    ))
-    caption(doc, "Table S1", "Lag-1 autocorrelation of crisis symptom and suicidal ideation totals")
-    rows = []
-    for _, r in d.iterrows():
-        rows.append([
-            AUTOCORR.get(r["outcome"], r["outcome"]),
-            integer(r["n_pairs"]),
-            integer(r["n_participants"]),
-            f'{dec(r["r_pooled"])} {ci(r["r_pooled_CI_lo"], r["r_pooled_CI_hi"])}',
-            dec(r["r_within_person"]),
-            dec(r["ICC1"]),
-            f'{dec(r["r_perperson_median"])} ({integer(r["n_participants_with_min_pairs"])})',
-        ])
-    table(doc, ["Assessment pair", "Pairs", "Ppts", "Pooled r [95% CI]",
-                "Within-person r", "ICC(1)", "Median per-person r (n)"], rows)
-    note(doc, (
-        "Pooled r is computed across all available pairs. Within-person r is computed on "
-        "person-mean-centered scores. The final column reports the median of the "
-        "within-participant correlations among the number of participants shown in "
-        "parentheses, restricted to those contributing at least five pairs. "
-        "DSI-SS = Depressive Symptom Inventory Suicidality Subscale."
-    ))
-
-
-def section_s2(doc: Document) -> None:
-    m = pd.read_csv(TABLES / "ar1_benchmark_models.csv")
-    c = pd.read_csv(TABLES / "ar1_benchmark_contrasts.csv")
-    m = m[m["alpha_spec"] == "fixed_alpha_10"]
-    c = c[c["alpha_spec"] == "fixed_alpha_10"]
-
-    heading(doc, "S2. Comparison with an autoregressive benchmark")
-    prose(doc, (
-        "A reviewer asked whether diary language predicts symptom reports better than the "
-        "symptom reports themselves do. We therefore refit the text-only models on the "
-        "subsample for which a prior assessment of the outcome was available, and compared "
-        "them with a model containing that prior assessment as the sole predictor and with a "
-        "model containing both (Table S2). The prior assessment alone outperformed diary text "
-        "for all four outcomes. Adding diary text to the prior assessment improved concurrent "
-        "prediction for both measures, with increases in cross-validated R-squared of .099 "
-        "(95% CI [.043, .148]) for crisis symptom totals and .035 (95% CI [.005, .064]) for "
-        "DSI-SS totals. For the next-morning outcomes, adding diary text to the prior "
-        "assessment produced no detectable improvement, with increases of .000 "
-        "(95% CI [-.017, .018]) and -.010 (95% CI [-.045, .019]). Diary language thus carried "
-        "information about current symptom severity that the previous report did not, and did "
-        "not improve on the previous report when the outcome was measured the following "
-        "morning."
-    ))
-    caption(doc, "Table S2", "Diary text and a first-order autoregressive term as predictors")
-    rows = []
-    for a in ORDER:
-        sub = m[m["analysis"] == a]
-        for i, (_, r) in enumerate(sub.iterrows()):
-            rows.append([
-                OUTCOME[a] if i == 0 else "",
-                MODEL.get(r["model"], r["model"]),
-                integer(r["n"]), integer(r["participants"]), integer(r["n_predictors"]),
-                dec(r["pearson_r"]), dec(r["R2"]),
-            ])
-    table(doc, ["Outcome", "Model", "n", "Ppts", "Predictors", "r", "R\u00b2"], rows)
-    note(doc, (
-        "All models use participant-grouped 5-fold cross-validation with 20 principal "
-        "components extracted from the sentence embeddings within training folds only, and "
-        "ridge regression with alpha = 10. r and R-squared are computed on pooled out-of-fold "
-        "predictions. The reference row repeats the full-sample text-only result so that the "
-        "cost of restricting to observations with an available prior assessment is visible."
-    ))
-    doc.add_paragraph()
-    caption(doc, "Table S3", "Incremental contribution of diary text relative to the autoregressive term")
-    rows = []
-    for a in ORDER:
-        sub = c[c["analysis"] == a]
-        for i, (_, r) in enumerate(sub.iterrows()):
-            rows.append([
-                OUTCOME[a] if i == 0 else "",
-                contrast_label(r["contrast"]),
-                dec(r["delta_r"], 3), ci(r["delta_r_CI_lo"], r["delta_r_CI_hi"], 3),
-                dec(r["delta_R2"], 3), ci(r["delta_R2_CI_lo"], r["delta_R2_CI_hi"], 3),
-            ])
-    table(doc, ["Outcome", "Contrast", "\u0394r", "95% CI", "\u0394R\u00b2", "95% CI"], rows)
-    note(doc, (
-        "Confidence intervals are percentile intervals from a bootstrap that resamples "
-        "participants rather than observations, so they account for the clustering of "
-        "observations within participants."
-    ))
-
-
-def section_s3(doc: Document) -> None:
-    m = pd.read_csv(TABLES / "ar1_decomposition_models.csv")
-    heading(doc, "S3. What the autoregressive term actually contributes")
-    prose(doc, (
-        "The prior assessment of an outcome contains a stable person-level component, which is "
-        "that participant's average level, and a within-person deviation from it. Because the "
-        "first of these is constant within a participant, a model containing the prior "
-        "assessment can perform well by recovering participant averages alone. We therefore "
-        "split the lagged predictor into its between- and within-person parts and refit "
-        "(Table S4). The between-person part accounted for essentially all of the "
-        "autoregressive term's predictive value, with cross-validated R-squared between .62 "
-        "and .67 across the four outcomes, whereas the within-person part alone performed no "
-        "better than predicting each outcome's mean, with R-squared between -.036 and -.011. "
-        "The benchmark that diary text failed to improve upon prospectively is therefore close "
-        "to a participant-specific intercept, and its apparent advantage reflects stable "
-        "differences in symptom level rather than any capacity to anticipate change. Consistent "
-        "with that interpretation, adding diary text to the within-person part alone increased "
-        "R-squared by .283 (95% CI [.201, .351]) for concurrent crisis symptom totals, while "
-        "adding it to both parts increased R-squared by .059 (95% CI [.026, .088]) for the same "
-        "outcome and by .000 (95% CI [-.006, .007]) for next-morning crisis symptom totals."
-    ))
-    caption(doc, "Table S4",
-            "Between- and within-person components of the autoregressive term")
-    rows = []
-    for a in ORDER:
-        sub = m[m["analysis"] == a]
-        for i, (_, r) in enumerate(sub.iterrows()):
-            rows.append([
-                OUTCOME[a] if i == 0 else "",
-                MODEL.get(r["model"], r["model"]),
-                integer(r["n_predictors"]), dec(r["pearson_r"]), dec(r["R2"]),
-            ])
-    table(doc, ["Outcome", "Model", "Predictors", "r", "R\u00b2"], rows)
-    note(doc, (
-        "The between-person part of the lagged predictor is each participant's mean of that "
-        "predictor; the within-person part is the deviation of each observation from that mean. "
-        "A negative R-squared indicates out-of-fold prediction worse than the training-fold "
-        "mean of the outcome."
-    ))
-
-
-def section_s4(doc: Document) -> None:
-    m = pd.read_csv(TABLES / "text_plus_symptoms_models.csv")
+def section_s8(doc: Document) -> None:
+    """Backs limitation Fourth: convergent validity rather than incremental utility."""
     c = pd.read_csv(TABLES / "text_plus_symptoms_contrasts.csv")
-    m = m[(m["alpha_spec"] == "fixed_alpha_10") & (m["block"] != "(none)")]
     c = c[c["alpha_spec"] == "fixed_alpha_10"]
-    order = [o for o in ORDER if o in set(m["outcome"])]
+    order = [o for o in ORDER if o in set(c["outcome"])]
 
-    heading(doc, "S4. Diary text alongside concurrently reported symptoms")
+    heading(doc, "S8. Diary text alongside concurrently reported symptoms")
     prose(doc, (
-        "A further question is whether diary language adds anything once the symptoms a "
-        "participant has just reported are already in the model, which is the comparison that "
-        "bears on whether written entries could supplement rather than replace brief symptom "
-        "scales. We fit models containing the concurrently reported crisis symptom total, the "
-        "five crisis symptom items separately, or all self-report predictors, each with and "
-        "without diary text (Tables S5 and S6). For next-morning crisis symptom totals, diary "
-        "text added nothing detectable to the concurrent crisis symptom total, with a change in "
+        "The fourth limitation reported in the main text rests on the comparisons in Table S8. "
+        "We fit models containing the concurrently reported crisis symptom total, the five "
+        "crisis symptom items separately, or all self-report predictors, each with and without "
+        "diary text, and estimated the change in cross-validated R-squared attributable to "
+        "adding one block to the other. For next-morning crisis symptom totals, diary text "
+        "added nothing detectable to the concurrent crisis symptom total, with a change in "
         "R-squared of -.003 (95% CI [-.018, .011]). The same held for next-morning DSI-SS "
         "totals, where the change was -.017 (95% CI [-.107, .062]). For same-evening DSI-SS "
         "totals, diary text added .001 (95% CI [-.070, .053]) beyond the crisis symptom total "
@@ -357,31 +208,8 @@ def section_s4(doc: Document) -> None:
         "sample, and the case for collecting them rests on their value when such measures are "
         "unavailable rather than on incremental prediction."
     ))
-    caption(doc, "Table S5", "Diary text and concurrently reported symptoms as predictors")
-    rows = []
-    for a in order:
-        sub = m[m["outcome"] == a]
-        first = True
-        for blk, g in sub.groupby("block", sort=False):
-            for i, (_, r) in enumerate(g.iterrows()):
-                rows.append([
-                    OUTCOME[a] if first else "",
-                    MODEL.get(blk, blk) if i == 0 else "",
-                    MODEL.get(r["model"], r["model"]),
-                    integer(r["n"]), integer(r["n_predictors"]),
-                    dec(r["pearson_r"]), dec(r["R2"]),
-                ])
-                first = False
-    table(doc, ["Outcome", "Self-report block", "Model", "n", "Predictors",
-                "r", "R\u00b2"], rows)
-    note(doc, (
-        "The crisis symptom items block contains the five items separately rather than their "
-        "total. The all self-report predictors block contains the crisis symptom total and the "
-        "DSI-SS total. Sample sizes differ by one or two observations across blocks because of "
-        "item-level missingness."
-    ))
-    doc.add_paragraph()
-    caption(doc, "Table S6", "Incremental contribution of diary text relative to self-reported symptoms")
+    caption(doc, "Table S8",
+            "Incremental contribution of diary text relative to self-reported symptoms")
     rows = []
     for a in order:
         sub = c[c["outcome"] == a]
@@ -392,17 +220,23 @@ def section_s4(doc: Document) -> None:
                 dec(r["delta_R2"], 3), ci(r["delta_R2_CI_lo"], r["delta_R2_CI_hi"], 3),
             ])
     table(doc, ["Outcome", "Contrast", "\u0394R\u00b2", "95% CI"], rows)
-    note(doc, "Confidence intervals are participant-cluster bootstrap percentile intervals.")
+    note(doc, (
+        "The crisis symptom items block contains the five items separately rather than their "
+        "total. The all self-report predictors block contains the crisis symptom total and the "
+        "DSI-SS total. Confidence intervals are participant-cluster bootstrap percentile "
+        "intervals. The underlying model fits are reported in the project repository."
+    ))
 
 
-def section_s5(doc: Document) -> None:
+def section_s9(doc: Document) -> None:
+    """Backs limitation Fifth: prospective accuracy is carried between persons."""
     d = pd.read_csv(TABLES / "covariate_between_within_decomposition.csv")
-    heading(doc, "S5. Between- and within-person components of the text models")
+    heading(doc, "S9. Between- and within-person components of the text models")
     prose(doc, (
-        "The cross-validated predictions from the text-only models were decomposed in the same "
-        "way as the autoregressive term, by correlating participant means of the predictions "
-        "with participant means of the outcome and by correlating the person-mean-centered "
-        "predictions with the person-mean-centered outcome (Table S7). Because participant "
+        "The fifth limitation reported in the main text rests on Table S9. The cross-validated "
+        "predictions from the text-only models were decomposed by correlating participant means "
+        "of the predictions with participant means of the outcome, and by correlating the "
+        "person-mean-centered predictions with the person-mean-centered outcome. Because participant "
         "assignment to folds is deterministic under grouped cross-validation and a single "
         "partition can move these estimates appreciably, each value is reported as the mean "
         "and standard deviation across 30 random participant-to-fold partitions. The "
@@ -415,7 +249,7 @@ def section_s5(doc: Document) -> None:
         "standard deviations between .004 and .010 across partitions, whereas the "
         "between-person correlations varied by .02 to .06."
     ))
-    caption(doc, "Table S7",
+    caption(doc, "Table S9",
             "Between- and within-person decomposition of the text-only model predictions")
     rows = []
     for a in ORDER:
@@ -439,138 +273,6 @@ def section_s5(doc: Document) -> None:
     ))
 
 
-def section_s6(doc: Document) -> None:
-    m = pd.read_csv(TABLES / "covariate_dayofweek_models.csv")
-    c = pd.read_csv(TABLES / "covariate_dayofweek_contrasts.csv")
-    heading(doc, "S6. Day of week")
-    prose(doc, (
-        "Because diary entries written on different days of the week may differ in content for "
-        "reasons unrelated to symptom severity, we tested whether day of week accounted for any "
-        "of the text models' accuracy (Table S8). Day of week was entered as six indicator "
-        "variables with Monday omitted. Entered alone it predicted no outcome better than the "
-        "outcome mean, with cross-validated R-squared between -.022 and -.008, and adding it to "
-        "diary text did not improve prediction for any outcome. The change in R-squared from "
-        "adding day of week to diary text was -.001 (95% CI [-.004, .002]) for concurrent "
-        "crisis symptom totals and -.009 (95% CI [-.013, -.005]) for next-morning DSI-SS "
-        "totals, the latter indicating a small decrement consistent with the cost of six "
-        "uninformative predictors. Observations were close to evenly distributed across "
-        "weekdays, and 114 of 123 participants contributed observations on at least five "
-        "distinct weekdays, so the null result does not reflect insufficient coverage."
-    ))
-    caption(doc, "Table S8", "Day of week as a predictor and as a covariate")
-    rows = []
-    for a in ORDER:
-        sub = m[m["analysis"] == a]
-        for i, (_, r) in enumerate(sub.iterrows()):
-            rows.append([
-                OUTCOME[a] if i == 0 else "",
-                MODEL.get(r["model"], r["model"]),
-                integer(r["n"]), integer(r["n_predictors"]),
-                dec(r["pearson_r"]), dec(r["R2"]),
-            ])
-    table(doc, ["Outcome", "Model", "n", "Predictors", "r", "R\u00b2"], rows)
-    doc.add_paragraph()
-    caption(doc, "Table S9", "Incremental contribution of day of week")
-    rows = []
-    for a in ORDER:
-        sub = c[c["analysis"] == a]
-        for i, (_, r) in enumerate(sub.iterrows()):
-            rows.append([
-                OUTCOME[a] if i == 0 else "", contrast_label(r["contrast"]),
-                dec(r["delta_R2"], 3), ci(r["delta_R2_CI_lo"], r["delta_R2_CI_hi"], 3),
-            ])
-    table(doc, ["Outcome", "Contrast", "\u0394R\u00b2", "95% CI"], rows)
-    note(doc, "Confidence intervals are participant-cluster bootstrap percentile intervals.")
-
-
-def section_s7(doc: Document) -> None:
-    dm = pd.read_csv(TABLES / "covariate_demographic_contrasts.csv")
-    pc = pd.read_csv(TABLES / "covariate_personlevel_contrasts.csv")
-    fs = pd.read_csv(TABLES / "covariate_personlevel_fold_stability.csv")
-    rec = pd.read_csv(TABLES / "covariate_text_recovers_demographics.csv")
-
-    heading(doc, "S7. Age and sex")
-    prose(doc, (
-        "Sentence embeddings encode speaker characteristics, so a model trained on diary text "
-        "could predict symptom severity partly by inferring who wrote the entry. Two features "
-        "of the design bear on this concern. First, participant-grouped cross-validation means "
-        "no participant appears in both a training fold and the test fold, so a demographic "
-        "signal can help only insofar as it generalizes to held-out participants. Second, the "
-        "within-person estimates reported in Section S5 are computed on person-mean-centered "
-        "scores, which absorb every time-invariant participant characteristic, including age "
-        "and sex, and are therefore adjusted for them by construction. Person-level covariates "
-        "can bear only on the between-person component."
-    ))
-    prose(doc, (
-        "The mechanism for such a confound was present in these data. Diary text recovered age "
-        "with a cross-validated correlation of .41 at the participant level and classified sex "
-        "at birth with an area under the receiver operating characteristic curve of .69 "
-        "(Table S10). Adding age and sex to the text models nonetheless did not improve "
-        "prediction of any outcome at either the day level or the participant level "
-        "(Table S11). At the participant level, where the covariates have the most room to act, "
-        "the change in R-squared from adding them to diary text was -.010 "
-        "(95% CI [-.035, .010]) for concurrent crisis symptom totals and -.022 "
-        "(95% CI [-.056, .015]) for next-morning crisis symptom totals. Adding diary text to "
-        "age and sex, by contrast, increased R-squared by .379 (95% CI [.264, .512]) and .287 "
-        "(95% CI [.160, .424]) for the same two outcomes. Age and sex alone predicted the "
-        "crisis symptom outcomes no better than their means, with cross-validated R-squared of "
-        "-.030 and -.012 averaged across 30 random participant-to-fold partitions. Demographic "
-        "characteristics therefore do not appear to explain the association between diary "
-        "language and symptom severity, although the modest recovery of age and sex from text "
-        "means this cannot be ruled out for characteristics we did not measure."
-    ))
-    caption(doc, "Table S10", "Recovery of demographic characteristics from diary text")
-    rows = []
-    for _, r in rec.iterrows():
-        rows.append([
-            "Participant level" if r["level"] == "person" else "Day level",
-            "Age" if r["target"] == "age" else "Sex at birth (male)",
-            integer(r["n"]), dec(r["pearson_r"]), dec(r["R2"]),
-            dec(r["AUROC"]) if not pd.isna(r["AUROC"]) else "",
-        ])
-    table(doc, ["Level", "Target", "n", "r", "R\u00b2", "AUROC"], rows)
-    doc.add_paragraph()
-    caption(doc, "Table S11", "Age and sex as covariates in the text models")
-    rows = []
-    for lvl, src in [("Day level", dm), ("Participant level", pc)]:
-        first = True
-        for a in ORDER:
-            sub = src[src["analysis"] == a]
-            for i, (_, r) in enumerate(sub.iterrows()):
-                rows.append([
-                    lvl if first else "",
-                    OUTCOME[a] if i == 0 else "",
-                    contrast_label(r["contrast"]),
-                    dec(r["delta_R2"], 3), ci(r["delta_R2_CI_lo"], r["delta_R2_CI_hi"], 3),
-                ])
-                first = False
-    table(doc, ["Level", "Outcome", "Contrast", "\u0394R\u00b2", "95% CI"], rows)
-    doc.add_paragraph()
-    caption(doc, "Table S12",
-            "Participant-level model performance across 30 random fold partitions")
-    rows = []
-    for a in ORDER:
-        sub = fs[fs["analysis"] == a]
-        for i, (_, r) in enumerate(sub.iterrows()):
-            rows.append([
-                OUTCOME[a] if i == 0 else "",
-                MODEL.get(r["model"], r["model"]),
-                integer(r["participants"]),
-                f'{dec(r["r_mean"])} ({dec(r["r_sd"], 3)})',
-                f'{dec(r["R2_mean"])} ({dec(r["R2_sd"], 3)})',
-                f'{dec(r["R2_min"])} to {dec(r["R2_max"])}',
-            ])
-    table(doc, ["Outcome", "Model", "Ppts", "r (SD)", "R\u00b2 (SD)",
-                "R\u00b2 range"], rows)
-    note(doc, (
-        "Participant-level analyses regress each participant's mean outcome on the mean of that "
-        "participant's sentence embeddings, renormalized to unit length. With 123 participants "
-        "and five folds, a single deterministic partition can fall more than one standard "
-        "deviation from the mean across partitions, so means and standard deviations across "
-        "partitions are reported in place of single-partition estimates."
-    ))
-
-
 # ---------------------------------------------------------------------------
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -584,18 +286,19 @@ def main() -> None:
 
     heading(doc, "Supplemental Materials")
     prose(doc, (
-        "This supplement reports analyses conducted in response to reviewer questions about "
-        "whether the association between diary language and crisis symptom severity could be "
-        "explained by the stability of the outcomes over time, by concurrently reported "
-        "symptoms, by day of week, or by participant demographic characteristics. All models "
-        "use the cross-validation procedure described in the main text, with participants "
-        "assigned whole to folds, principal components extracted within training folds only, "
-        "and ridge regression with alpha = 10 unless otherwise noted. All confidence intervals "
-        "are percentile intervals from a bootstrap that resamples participants."
+        "This supplement reports the two sensitivity analyses cited in the limitations section "
+        "of the main text. Table S8 reports the incremental contribution of diary text relative "
+        "to concurrently reported symptoms, which is the basis for the fourth limitation. "
+        "Table S9 reports the between- and within-person decomposition of the cross-validated "
+        "predictions, which is the basis for the fifth. Table numbering continues the series "
+        "in the main text, which ends at Table S7. Both analyses use the cross-validation "
+        "procedure described in the main text, with participants assigned whole to folds, "
+        "principal components extracted within training folds only, and ridge regression with "
+        "alpha = 10. All confidence intervals are percentile intervals from a bootstrap that "
+        "resamples participants."
     ))
 
-    for fn in (section_s1, section_s2, section_s3, section_s4,
-               section_s5, section_s6, section_s7):
+    for fn in (section_s8, section_s9):
         doc.add_paragraph()
         fn(doc)
 
@@ -605,7 +308,7 @@ def main() -> None:
     n_tables = len(doc.tables)
     print(f"wrote {out}")
     print(f"  {len(doc.paragraphs)} paragraphs, {n_tables} tables")
-    assert n_tables == 12, f"expected 12 tables, built {n_tables}"
+    assert n_tables == 2, f"expected 2 tables, built {n_tables}"
     text = "\n".join(p.text for p in doc.paragraphs)
     for bad in ("\u2014", "--", "[CITE NEEDED]", "[N]"):
         assert bad not in text, f"found {bad!r} in supplement prose"
