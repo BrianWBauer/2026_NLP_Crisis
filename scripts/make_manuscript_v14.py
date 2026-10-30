@@ -49,6 +49,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
+import equation_repair
 import make_manuscript_v13 as v13
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -225,6 +226,11 @@ def main() -> None:
         rid = next_rel_id(rels)
         rels = add_external_rel(rels, rid, url)
         xml = link_plain_doi(xml, rid, url)
+
+    # 4. Repair the display equation. Untracked, deliberately: it changes no
+    #    text, so no insertion or deletion can carry it, and Word handles
+    #    revision markup around OMML poorly. See equation_repair.
+    xml = equation_repair.patch(xml)
 
     # --- validation ---------------------------------------------------------
     import xml.dom.minidom as md
