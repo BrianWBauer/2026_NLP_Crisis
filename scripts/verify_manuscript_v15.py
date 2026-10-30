@@ -14,6 +14,7 @@ both failed on tag-prefix collisions, <w:del ...> matching the self-closing
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 import zipfile
@@ -23,8 +24,8 @@ from pathlib import Path
 from verify_manuscript_v13 import accept_all, load, para_texts, q
 
 ROOT = Path(__file__).resolve().parents[1]
-V14 = ROOT / "NLP_Crisis_EMA Paper v14.docx"
-V15 = ROOT / "NLP_Crisis_EMA Paper v15.docx"
+DEFAULT_TRACKED = "NLP_Crisis_EMA Paper v14.docx"
+DEFAULT_CLEAN = "NLP_Crisis_EMA Paper v15.docx"
 
 R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
@@ -92,6 +93,13 @@ def hyperlink_pairs(root: ET.Element) -> list[tuple[str, str]]:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tracked", default=DEFAULT_TRACKED)
+    ap.add_argument("--clean", default=DEFAULT_CLEAN)
+    args = ap.parse_args()
+    global V14, V15
+    V14, V15 = ROOT / args.tracked, ROOT / args.clean
+
     print(f"{V14.name}  (all accepted)  ->  {V15.name}")
 
     for p in (V14, V15):

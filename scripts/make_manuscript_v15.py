@@ -32,14 +32,15 @@ with ElementTree and shares no code with this file.
 
 from __future__ import annotations
 
+import argparse
 import re
 import shutil
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "NLP_Crisis_EMA Paper v14.docx"
-DST = ROOT / "NLP_Crisis_EMA Paper v15.docx"
+DEFAULT_SRC = "NLP_Crisis_EMA Paper v14.docx"
+DEFAULT_DST = "NLP_Crisis_EMA Paper v15.docx"
 WORK = Path("/tmp/v15work")
 
 PARA_RE = re.compile(r"<w:p\b(?:(?!</w:p>).)*</w:p>", re.S)
@@ -84,6 +85,12 @@ def accept(fragment: str) -> str:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(description="Flatten a tracked copy by accepting every change.")
+    ap.add_argument("--src", default=DEFAULT_SRC)
+    ap.add_argument("--dst", default=DEFAULT_DST)
+    args = ap.parse_args()
+    SRC, DST = ROOT / args.src, ROOT / args.dst
+
     if WORK.exists():
         shutil.rmtree(WORK)
     WORK.mkdir(parents=True)
